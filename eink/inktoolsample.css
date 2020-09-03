@@ -1,0 +1,94 @@
+@charset "SHIFT_JIS";
+
+
+* {
+  font-weight: normal;
+  font-style: normal;
+  text-decoration: none;
+  font-family:"‚l‚r ‚oƒSƒVƒbƒN", Osaka, sans-serif;
+  list-style: none;
+/*  -ms-touch-action: none; */
+}
+
+body {
+  background-color: #EEFFFF;
+  color: black;
+  margin: 0px;
+  padding: 0px;
+  text-align: left;
+}
+
+div#header {
+  margin: 0px;
+  padding: 8px;
+  background-color: #CCF8D8;
+  font-weight: bold;
+  font-size: 18pt;
+}
+
+div#functions {
+  padding: 8px;
+}
+
+fieldset.funcs {
+  font-weight: normal;
+  font-size: 10pt;
+  float: left;
+  min-height : 38px;
+}
+
+div#contents {
+  margin: 0px;
+  padding: 8px;
+  background-color: #EEFFFF;
+  width: 100%;
+  text-align: center;
+  clear: both;
+}
+
+div#signarea {
+  padding: 16px;
+  background-color: #EEFFFF; 
+}
+
+div#signframe {
+  padding: 4px;
+  background-color: #D8F8CC;
+  width: 800px;
+  margin: 0px auto;
+}
+
+div#signframe2 {
+  padding: 4px;
+  background-color: #D8F8CC;
+  width: 800px;
+  margin: 0px auto;
+}
+
+
+div.signframec {
+  padding: 4px;
+  background-color: #D8F8CC;
+  width: 700px;
+  margin: 0px auto;
+}
+
+
+div#canvas1 {
+  margin: 0px;
+  padding: 0px;
+  width: 800px;
+  height: 160px;
+  background-image: url(sign1.gif);
+}
+
+
+div#footer {
+  margin: 0px;
+  padding: 8px;
+  background-color: #CCF8D8;
+  text-align: center;
+  font-size: 10pt;
+}
+
+

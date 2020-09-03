@@ -1,0 +1,574 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ja" lang="ja">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta http-equiv="Content-Language" content="ja" />
+    <meta http-equiv="Content-Style-Type" content="text/css" />
+    <meta http-equiv="Content-Script-Type" content="text/javascript" />
+
+<!--    <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" /> -->
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+
+    <meta name="author" content="Pothos Corporation" />
+
+    <title>InkTool HTML5 KUMON版サンプル</title>
+
+    <link rel="stylesheet" href="inktoolsample.css" title="sample" type="text/css" media="screen, tv">
+
+    <!-- ↓↓ 必要なJavaScrpt (excanvas.jsはIE8のみ必要です）-->
+    <!--[if lt IE 9]>
+      <script type="text/javascript" src="excanvas.js">
+        <p>Using the excanvas.js wrapper for canvas.</p>
+      </script>
+    <![endif]-->
+    <script type="text/javascript" language="JavaScript" src="InkTool.js"></script>
+    <!-- ↑↑ 必要なJavaScrpt -->
+
+    <!-- ↓↓ JavaScriptサンプルコード（主だった機能の使い方一通り記述していますが、必要な部分だけ抜き出してご使用ください） -->
+    <script type="text/javascript" language="JavaScript">
+
+      // 保存と読み込みに使用するインクデータ用のオブジェクト
+      var inkFor1 = new Object();
+
+      var penType = 1;  // ペン種別： 1=ペン, 2=消しゴム
+      var penWidth = 2; // ペン太さ: 1=細い, 2=普通, 3=太い 
+
+      // ペンの色
+      var penColorBlack = '#3A3F3B'; // 黒 
+      var penColorRed =   '#F8241A'; // 赤
+      var penColorBlue =  '#1412E8'; // 青
+      var penColor = penColorBlack;  // 初期値は黒
+
+
+      // 画像背景色
+      var bgColorWhite = true; // true ... 白、false ... 透明
+
+
+      // 初期化
+      function setup() {
+//alert("PointerEventFlag=" + (typeof window.PointerEvent != 'undefined'));
+//alert("maxTouchPoints=" + window.navigator.maxTouchPoints);
+//InkTool.InkCanvasLib.setMultiTouchMax(1);
+//InkTool.InkCanvasLib.DocPreventNewPointer = true;
+//InkTool.InkCanvasLib.setUsePointer("firefox", false);	// firefoxはpointerだとマルチタッチがおかしい (2019/07/29現在)
+
+
+        // 自動的に画面全体のドラッグや選択を不可能にする機能はオフ
+        InkTool.InkCanvasLib.setPreventDragAndSelect(false);
+
+        // 署名用のinktoolを id="canvas1"のタグにバインドして生成する
+        var canvas1 = InkTool.InkCanvasLib.createCanvas('canvas1');
+
+        // ペンアップ時のハンドラを設定する（必要なら）
+        canvas1.setHandler("penup", handlePenUp);
+
+        // 使用するペンを設定する
+        setPenToCanvas();
+
+        // 各ボタンの状態を設定する
+        setButtonStatus();
+
+        // IE8(エミュレーションモード)では、消しゴムは使えないのでdisable
+        if(InkTool.InkLib.needsEmulateCanvas()) {
+          var elem = document.getElementById("pen2");
+          elem.disabled = true;
+
+          elem = document.getElementById("labelpen2");
+          elem.style.color = "lightgray";
+        }
+
+        // ユーザーエージェントの表示（テスト用）
+        var uaelem = document.getElementById("ua");
+        uaelem.innerHTML = navigator.userAgent;
+
+        funcResize();
+      }
+
+
+
+
+      // ペンアップ時に呼び出されるハンドラ
+      function handlePenUp(canvas, pos) {
+        setButtonStatus();
+      }
+
+
+      // 画面のリサイズ時に呼び出されるハンドラ
+      function funcResize() {
+        // リサイズ結果に合わせてInkToolのキャンバスを再レイアウト
+        InkTool.InkCanvasLib.relayoutCanvas('canvas1');
+      }
+
+
+      // 各種機能
+
+      // 消去
+      function funcClear() {
+        var canvas1 = InkTool.InkCanvasLib.getCanvas('canvas1');
+        if(canvas1 != null) {
+          canvas1.clearInk();
+        }
+
+        // サムネイル用の画像タグをno imageに
+        var image1 = document.getElementById('image1');
+        if(image1 != null) {
+          image1.src = "noimage.gif";
+        }
+
+        setButtonStatus();
+      }
+
+      // UNDO
+      function funcUndo() {
+        var canvas1 = InkTool.InkCanvasLib.getCanvas('canvas1');
+        if(canvas1 != null) {
+          canvas1.undoInk();
+        }
+        setButtonStatus();
+      }
+
+      // REDO
+      function funcRedo() {
+        var canvas1 = InkTool.InkCanvasLib.getCanvas('canvas1');
+        if(canvas1 != null) {
+          canvas1.redoInk();
+        }
+        setButtonStatus();
+      }
+
+      // 保存
+      function funcSaveInk() {
+        var canvas1 = InkTool.InkCanvasLib.getCanvas('canvas1');
+        if(canvas1 != null) {
+          inkFor1 = canvas1.saveInk();
+          var elem = document.getElementById("inkdata");
+          elem.value = inkFor1;
+        }
+      }
+
+      // 読込
+      function funcLoadInk() {
+        var canvas1 = InkTool.InkCanvasLib.getCanvas('canvas1');
+        if(canvas1 != null) {
+          var elem = document.getElementById("inkdata");
+          if(elem.value != "") {
+            inkFor1 = elem.value;
+          }
+          canvas1.loadInk(inkFor1);
+
+        }
+        setButtonStatus();
+      }
+
+      // 決定 （画像を作成して表示する)
+      function funcSubmit() {
+        var canvas1 = InkTool.InkCanvasLib.getCanvas('canvas1');
+        var image1 = document.getElementById('image1');
+
+        // サムネイル用の画像タグに転記
+        if(canvas1 != null && image1 != null) {
+          var imgdata;
+          if(bgColorWhite == true) {
+            imgdata = canvas1.saveImageWithBGColor('#FFFFFF', 'image/png');
+          } else {
+            imgdata = canvas1.saveImage('image/png');
+          }
+          if(imgdata != null) {
+            image1.src = imgdata;
+          } else {
+            image1.src = "noimage.gif";
+          }
+        }
+
+        setButtonStatus();
+      }
+
+
+
+
+
+      // 再現開始（再現中止）
+      function funcReplay() {
+
+        var canvas1 = InkTool.InkCanvasLib.getCanvas('canvas1');
+        if(canvas1 != null) {
+
+          // 再現中なら中断
+          if(canvas1.isReplaying()) {
+            canvas1.stopReplay();
+            setReplayMode(0);
+
+          // そうでなければ再現開始
+          } else {
+            setReplayMode(1);
+            canvas1.replayInk(1.0, 500, handlerReplay, handlerSpecialPen);
+          }
+        }
+      }
+
+      // 再現中断、終了時に呼び出されるハンドラ
+      function handlerReplay(canvas, mode) {
+        setReplayMode(0);
+      }
+
+      // 再現中、非再現中のモードのボタン設定
+      function setReplayMode(mode) {
+
+        if(mode == 0) { // 再現中でない
+          setButtonStatus();
+          var elem = document.getElementById("save");
+          elem.disabled = false;
+          elem = document.getElementById("load");
+          elem.disabled = false;
+
+          elem = document.getElementById("replay");
+          elem.value = "再現";
+
+        } else { // 再現中
+          var elem = document.getElementById("submit");
+          elem.disabled = true;
+          elem = document.getElementById("clear");
+          elem.disabled = true;
+          elem = document.getElementById("undo");
+          elem.disabled = true;
+          elem = document.getElementById("redo");
+          elem.disabled = true;
+          elem = document.getElementById("save");
+          elem.disabled = true;
+          elem = document.getElementById("load");
+          elem.disabled = true;
+
+          elem = document.getElementById("replay");
+          elem.value = "中止";
+        }
+      }
+
+      // 特殊なストロークを表示するハンドラ
+      function handlerSpecialPen(canvas, stroke) {
+        var str = "TP=" + stroke.st.tp;
+        if(stroke.kmn != null) {
+          str += ",RT=" + stroke.kmn.tr + ",QN=" + stroke.kmn.qu;
+          if(stroke.st.tp == 1001) { // sound
+            str += ",SN=" + stroke.kmn.si + ",LEN=" + stroke.kmn.sd;
+          } else if(stroke.st.tp == 1002) { // text
+            str += ",AR=" + stroke.kmn.ar + ",TXT=" + stroke.kmn.tx;
+          }
+        }
+
+        var ielem = document.getElementById("replayInfo");
+        ielem.innerHTML = str;
+
+      }
+
+
+      // ペン種の設定
+
+      // ペン
+      function funcPen() {
+        penType = 1;
+        setPenToCanvas();
+      }
+
+      // 消しゴム
+      function funcEraser() {
+        penType = 2;
+        setPenToCanvas();
+      }
+
+      // ペンの色の設定
+
+      // 黒
+      function funcColorBlack() {
+        penColor = penColorBlack;
+        setPenToCanvas();
+      }
+
+      // 赤
+      function funcColorRed() {
+        penColor = penColorRed;
+        setPenToCanvas();
+      }
+
+      // 青
+      function funcColorBlue() {
+        penColor = penColorBlue;
+        setPenToCanvas();
+      }
+
+    // ペンの太さの設定
+
+      // 細い
+      function funcPenWidthThin() {
+        penWidth = 1;
+        setPenToCanvas();
+      }
+
+      // 普通
+      function funcPenWidthNormal() {
+        penWidth = 2;
+        setPenToCanvas();
+      }
+
+      // 太い
+      function funcPenWidthBold() {
+        penWidth = 3;
+        setPenToCanvas();
+      }
+
+
+      // 画像背景色の設定
+
+      // 白
+      function funcBGColorWhite() {
+        bgColorWhite = true;
+      }
+
+      // 透明
+      function funcBGColorTransparent() {
+        bgColorWhite = false;
+      }
+
+
+
+      // その他のメソッド
+
+      // 描画状態により、ボタンの状態を設定する
+      function setButtonStatus() {
+        var canvas1 = InkTool.InkCanvasLib.getCanvas('canvas1');
+        if(canvas1 != null) {
+          var num = canvas1.getNumStrokes(); // 現在描画されているストローク数の取得
+          var max = canvas1.getMaxStrokes(); // 過去に描画された最大ストローク数の取得
+
+          var elem = document.getElementById("submit");
+          elem.disabled = (num == 0);
+
+          var elem = document.getElementById("clear");
+          elem.disabled = (num == 0);
+
+          var elem = document.getElementById("undo");
+          elem.disabled = (num == 0);
+
+          var elem = document.getElementById("redo");
+          elem.disabled = (num >= max);
+        }
+      }
+
+
+      // ペンの種類と色を設定する (penType: 種類(1,2), penColor: 色(#RRGGBB))
+      function setPenToCanvas() {
+        var canvas1 = InkTool.InkCanvasLib.getCanvas('canvas1');
+        if(canvas1 != null) {
+          var pen1;
+          switch(penType) {
+            case 1:
+            default:
+              pen1 = new InkTool.SolidPen();   // 太さ固定ペン
+              if(penWidth == 1) {
+                pen1.setPenWidth(1);        // ペンの太さを設定
+              } else if(penWidth == 2) {
+                pen1.setPenWidth(2);        // ペンの太さを設定
+              } else {
+                pen1.setPenWidth(4);        // ペンの太さを設定
+              }
+              break;
+            case 2:
+              pen1 = new InkTool.SolidEraser();   // 太さ固定消しゴム
+              if(penWidth == 1) {
+                pen1.setPenWidth(12);       // 消しゴムの太さを設定
+              } else if(penWidth == 2) {
+                pen1.setPenWidth(24);       // 消しゴムの太さを設定
+              } else {
+                pen1.setPenWidth(36);       // 消しゴムの太さを設定
+              }
+              break;
+          }
+
+          pen1.setPenColor(new InkTool.InkColor(penColor)); // ペン色を設定
+
+          canvas1.setPen(pen1); // ペンをキャンバスに設定
+        }
+      }
+
+
+      // キャンバスへ書き込み可能かどうかを設定
+      function funcSetCanvasMode(mode) {
+
+        var canvas1 = InkTool.InkCanvasLib.getCanvas('canvas1');
+        if(canvas1 != null) {
+          canvas1.setDrawingMode(mode); // mode=1なら書き込み可能、0なら表示専用
+        }
+      }
+
+
+      // リトライ回数の取得
+      function funcGetRetry() {
+        var relem = document.getElementById("retryno");
+
+        var canvas1 = InkTool.InkCanvasLib.getCanvas('canvas1');
+        if(canvas1 != null) {
+          var resp = canvas1.getRetryNumber();
+          relem.value = resp;
+        }
+      }
+
+      // リトライ回数の設定
+      function funcSetRetry() {
+        var relem = document.getElementById("retryno");
+        var rno = relem.value;
+
+        var canvas1 = InkTool.InkCanvasLib.getCanvas('canvas1');
+        if(canvas1 != null) {
+          // 数値又は数字文字列で現在のリトライ回数(0,1,2)を指定する
+          var resp = canvas1.setRetryNumber(rno);
+          if(resp == false) {
+            relem.value = "false";
+          }
+        }
+      }
+
+
+
+      // サウンドの再生
+      var soundPlaying = false;
+      var soundStart = 0;
+
+      function funcPlaySound() {
+        var pelem = document.getElementById("soundplay");
+        var selem = document.getElementById("soundst");
+        var telem = document.getElementById("soundtm");
+
+        if(soundPlaying == false) {
+          soundPlaying = true;
+          soundStart = Date.now();
+          selem.value = soundStart;
+          telem.value = "";
+          pelem.value = "停止";
+
+        } else {
+          soundPlaying = false;
+          var endTime = Date.now();
+          telem.value = (endTime - soundStart);
+          pelem.value = "再生";
+        }
+
+      }
+
+      // サウンドの追加
+      function funcAddSound() {
+        var qelem = document.getElementById("soundqu");
+        var ielem = document.getElementById("soundid");
+        var selem = document.getElementById("soundst");
+        var telem = document.getElementById("soundtm");
+        var relem = document.getElementById("soundrs");
+
+        var qnostr = qelem.value;
+        var snostr = ielem.value;
+        var stmstr = selem.value;
+        var ptmstr = telem.value;
+
+        var canvas1 = InkTool.InkCanvasLib.getCanvas('canvas1');
+        if(canvas1 != null) {
+          // 問題番号、サウンドID、再生開始時刻(1970/1/1 0:0:0からの経過ミリ秒)、再生時間(ms) を数値又は数字文字列で指定
+          var resp = canvas1.addSoundData(qnostr, snostr, stmstr, ptmstr);
+          relem.value = resp;
+        }
+
+        setButtonStatus();
+      }
+
+
+
+      // 何もしないでfalseを返す（ドラッグや選択を出来ないように）
+      function noselect() {
+        return false;
+      }
+
+    </script>
+
+  </head>
+  <body onload="setup()" onresize="funcResize()">
+    <object type="application/x-wacomtabletplugin"></object> <!-- wacom plugin test -->
+    <div id="header">InkTool for HTML5 KUMON版 サンプル</div>
+    <div id="ua">userAgent</div>
+    <div id="functions">
+      <div id="buttons">
+        <input type="button" value="消去" onclick="funcClear()" id="clear">
+        <input type="button" value="UNDO" onclick="funcUndo()" id="undo">
+        <input type="button" value="REDO" onclick="funcRedo()" id="redo">
+        <input type="button" value="保存" onclick="funcSaveInk()" id="save">
+        <input type="button" value="読込" onclick="funcLoadInk()" id="load">
+        <input type="button" value="再現" onclick="funcReplay()" id="replay">
+        <input type="button" value="決定" onclick="funcSubmit()" id="submit">
+      </div>
+      <fieldset class="funcs">
+        <legend>ペン種</legend>
+        <input type="radio" name="pen" value="pen" id="pen1" onclick="funcPen()" checked><label for="pen1" id="labelpen1">ペン</label>
+        <input type="radio" name="pen" value="ballpen" id="pen2" onclick="funcEraser()"><label for="pen2" id="labelpen2">消しゴム</label>
+      </fieldset>
+      <fieldset class="funcs">
+        <legend>色</legend>
+        <input type="radio" name="color" value="black" id="color1" onclick="funcColorBlack()" checked><label for="color1" id="labelcolor1">黒</label>
+        <input type="radio" name="color" value="red" id="color2" onclick="funcColorRed()"><label for="color2" id="labelcolor2">赤</label>
+        <input type="radio" name="color" value="blue" id="color3" onclick="funcColorBlue()"><label for="color3" id="labelcolor3">青</label>
+      </fieldset>
+      <fieldset class="funcs">
+        <legend>太さ</legend>
+        <input type="radio" name="pwidth" value="thin" id="pwidth1" onclick="funcPenWidthThin()"><label for="pwidth1" id="labelpwidth1">細い</label>
+        <input type="radio" name="pwidth" value="normal" id="pwidth2" onclick="funcPenWidthNormal()" checked><label for="pwidth2" id="labelpwidth2">普通</label>
+        <input type="radio" name="pwidth" value="bold" id="pwidth3" onclick="funcPenWidthBold()"><label for="pwidth3" id="labelpwidth3">太い</label>
+      </fieldset>
+
+      <fieldset class="funcs">
+        <legend>画像背景色</legend>
+        <input type="radio" name="bgcolor" value="white" id="bgcolor1" onclick="funcBGColorWhite()" checked><label for="bgcolor1" id="labelbgcolor1">白</label>
+        <input type="radio" name="bgcolor" value="transparent" id="bgcolor2" onclick="funcBGColorTransparent()"><label for="bgcolor2" id="labelbgcolor2">透明</label>
+      </fieldset>
+
+      <fieldset class="funcs">
+        <legend>キャンバスへの書込み</legend>
+        <input type="radio" name="canvasmode" value="1" id="canvasmode1" onclick="funcSetCanvasMode(1)" checked><label for="canvasmode1" id="labelcanvasmode1">できる</label>
+        <input type="radio" name="canvasmode" value="0" id="canvasmode0" onclick="funcSetCanvasMode(0)"><label for="canvasmode0" id="labelcanvasmode0">できない</label>
+      </fieldset>
+
+      <fieldset class="funcs">
+        <legend>リトライ回数</legend>
+        回数:<input type="text" name="retryno" size="6" value="0" id="retryno">&nbsp;&nbsp;
+        <input type="button" name="retryset" value="設定" id="retryset" onclick="funcSetRetry()">
+        <input type="button" name="retryset" value="取得" id="retryset" onclick="funcGetRetry()">
+      </fieldset>
+
+      <fieldset class="funcs">
+        <legend>サウンド</legend>
+        問題番号:<input type="text" name="soundqu" size="6" value="" id="soundqu">&nbsp;&nbsp;
+        音番号:<input type="text" name="soundid" size="6" value="" id="soundid">&nbsp;&nbsp;
+        <input type="button" name="soundplay" value="再生" id="soundplay" onclick="funcPlaySound()">&nbsp;&nbsp;
+        開始時刻:<input type="text" name="soundst" size="16" value="" id="soundst">&nbsp;&nbsp;
+        再生時間:<input type="text" name="soundtm" size="6" value="" id="soundtm">&nbsp;ms&nbsp;&nbsp;
+        <input type="button" name="soundadd" value="追加" id="soundadd" onclick="funcAddSound()">&nbsp;&nbsp;
+        <input type="text" name="soundrs" size="6" value="" id="soundrs">
+      </fieldset>
+
+
+    </div>
+
+    <div id="contents">
+      <div id="replayInfo">INFO</div>
+
+      <!-- 署名欄：ここはドラッグとテキストの選択を無効にしたほうが良い -->
+      <div id="signarea" style="-moz-user-select: none;" ondragstart="return noselect()" onselectstart="return noselect()">
+        <div id="signframe2" style="-ms-touch-action: none;">
+          描画テスト<br>
+          <img id="canvas1" width="800" height="400" src="sign1.gif"> <!-- 手書き署名用InkTool をバインドするタグ -->
+        </div>
+      </div>
+
+      <div>
+        <img id="image1" src="noimage.gif" width="400" height="200">
+        <textarea id="inkdata" name="inkdata" cols="40" rows="5"></textarea>
+      </div>
+    </div>
+
+    <div id="footer">COPYRIGHT (C) 2013-2019 Pothos Corporation</div>
+  </body>
+</html>
